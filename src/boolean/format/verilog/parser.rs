@@ -1,10 +1,10 @@
 use pest_derive::Parser;
 
 #[derive(Parser)]
-#[grammar = "./boolean/format/verilog/gate-level-verilog.pest"]
-pub struct GateLevelVerilogParser;
+#[grammar = "./boolean/format/verilog/verilog.pest"]
+pub struct VerilogParser;
 
-pub use Rule as GateLevelVerilogRule;
+pub use Rule as VerilogRule;
 
 #[cfg(test)]
 mod tests {
@@ -16,7 +16,7 @@ mod tests {
     fn parse_pest() {
         let input_file = "./test-data/sample1.v";
         let input = fs::read_to_string(&input_file).unwrap();
-        let result = GateLevelVerilogParser::parse(GateLevelVerilogRule::file, &input);
+        let result = VerilogParser::parse(VerilogRule::file, &input);
         let result = match result {
             Err(e) => panic!("{}", e),
             Ok(mut r) => r.next().unwrap(),
