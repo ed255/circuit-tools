@@ -75,6 +75,21 @@ impl GateType {
             _ => 1,
         }
     }
+    fn eval(&self, i: &[bool]) -> Vec<bool> {
+        match self {
+            Self::Not => vec![!i[0]],
+            Self::And => vec![i[0] & i[1]],
+            Self::AndYN => vec![i[0] & !(i[1])],
+            Self::AndNY => vec![!(i[0]) & i[1]],
+            Self::Nand => vec![!(i[0] & i[1])],
+            Self::Or => vec![i[0] | i[1]],
+            Self::OrYN => vec![i[0] | !(i[1])],
+            Self::OrNY => vec![!(i[0]) | i[1]],
+            Self::Nor => vec![!(i[0] | i[1])],
+            Self::Xor => vec![(i[0] & !(i[1])) | (!(i[0]) & i[1])],
+            Self::Xnor => vec![!((i[0] & !(i[1])) | (!(i[0]) & i[1]))],
+        }
+    }
 }
 
 impl From<verilog::ast::GateCellType> for GateType {
@@ -226,6 +241,39 @@ impl Circuit {
             num_wires,
         }
     }
+
+    fn eval(&self, inputs: Vec<Vec<bool>>) -> Vec<Vec<bool>> {
+        let mut wires = vec![None; self.num_wires];
+        let mut outputs: Vec<_> = self
+            .outputs
+            .iter()
+            .map(|output| vec![None; output.width as usize])
+            .collect();
+
+        for gate in &self.gates {
+            let input_values: Vec<_> = gate
+                .inputs
+                .iter()
+                .map(|input| match input {
+                    WireRef::Input { id, index } => inputs[*id][*index as usize],
+                    WireRef::Output { id, index } => outputs[*id][*index as usize].unwrap(),
+                    WireRef::Internal { id } => wires[*id].unwrap(),
+                })
+                .collect();
+            let output_values = gate.ty.eval(&input_values);
+            for (output, value) in gate.outputs.iter().zip(output_values) {
+                match output {
+                    WireRef::Input { .. } => unreachable!(),
+                    WireRef::Output { id, index } => outputs[*id][*index as usize] = Some(value),
+                    WireRef::Internal { id } => wires[*id] = Some(value),
+                }
+            }
+        }
+        outputs
+            .iter()
+            .map(|output| output.iter().map(|output| output.unwrap()).collect())
+            .collect()
+    }
 }
 
 impl Display for Circuit {
@@ -257,7 +305,7 @@ pub struct LayeredCircuit {
 
 impl From<Circuit> for LayeredCircuit {
     fn from(mut c: Circuit) -> Self {
-        // Track unready inputs per gate
+        // Track number of unready inputs per gate
         let mut gates_in_unready_count: Vec<_> =
             c.gates.iter().map(|g| g.ty.num_inputs()).collect();
         // Map of inputs WireRef to gates
@@ -270,6 +318,7 @@ impl From<Circuit> for LayeredCircuit {
                     .or_insert_with(|| vec![gate_index]);
             }
         }
+        // All circuit inputs are ready
         let mut wires_ready: Vec<_> = c
             .inputs
             .iter()
@@ -293,7 +342,7 @@ impl From<Circuit> for LayeredCircuit {
                     // them.
                     gates_in_unready_count[*gate_index] -= 1;
                     // If the gate now has 0 unready wires it can be added to this layer and the
-                    // output becomes a ready wire for the next iteration.
+                    // outputs become ready wires for the next iteration.
                     if gates_in_unready_count[*gate_index] == 0 {
                         let gate = mem::take(&mut c.gates[*gate_index]);
                         for outputs in &gate.outputs {
@@ -355,5 +404,20 @@ mod tests {
         println!();
         let layered_circuit = LayeredCircuit::from(circuit);
         println!("{}", layered_circuit);
+    }
+
+    #[test]
+    fn parse_circuit_eval() {
+        let input_file = "./test-data/sample1.v";
+        let input = fs::read_to_string(&input_file).unwrap();
+        let result = Module::parse(&input).unwrap();
+        // println!("{:#?}", result);
+        let circuit = Circuit::from_verilog(&result);
+        println!("{}", circuit);
+        let output = circuit.eval(vec![
+            vec![false, true, true, false, false, false, true, false],
+            vec![true, true, false, false, true, true, false, false],
+        ]);
+        println!("out : {:?}", output);
     }
 }
