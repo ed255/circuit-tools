@@ -1,0 +1,28 @@
+file = { SOI ~ module ~ EOI }
+
+module = { "module" ~ ident ~ (port)? ~ ";" ~ (wire | primitive_cell | gate_cell | assign)* ~ "endmodule" }
+
+ident = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+dec = @{ ASCII_DIGIT+ }
+
+port = { "(" ~ (ident)? ~ ("," ~ ident)* ~ ")" }
+
+wire = { wire_type ~ (width)? ~ ident ~ ";" }
+wire_type = { "input" | "output" | "wire" }
+
+width = { "[" ~ dec ~ ":0]" }
+
+index = { "[" ~ dec ~ "]" }
+
+primitive_cell = { primitive_cell_type ~ ident ~ "(" ~ ident ~ "," ~ (ident ~ ",")? ~ ident ~ ");" }
+primitive_cell_type = { "not" | "and" | "nand" | "or" | "nor" | "xor" | "xnor" }
+
+gate_cell = { gate_cell_type ~ ident ~ "(" ~ cell_args ~ (",")? ~ ");" }
+gate_cell_type = { "NOT" | "AND" | "ANDYN" | "ANDNY" | "NAND" | "OR" | "ORYN" | "ORNY" | "NOR" | "XOR" | "XNOR" }
+cell_args = { arg ~ ("," ~ arg)* }
+arg = { "." ~ ident ~ "(" ~ ident ~ (index)? ~ ")" }
+
+assign = { "assign" ~ ident ~ "=" ~ ident ~ ";" }
+
+WHITESPACE = _{ " " | "\t" | NEWLINE }
+COMMENT = _{ ("(*" ~ (!"*)" ~ ANY)* ~ "*)") | ("/*" ~ (!"*/" ~ ANY)* ~ "*/") | ("//" ~ (!NEWLINE ~ ANY)*) }
