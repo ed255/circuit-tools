@@ -278,6 +278,12 @@ impl Circuit {
 
 impl Display for Circuit {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "wires = {}, gates = {}",
+            self.num_wires,
+            self.gates.len(),
+        )?;
         writeln!(f, "inputs:")?;
         for (i, input) in self.inputs.iter().enumerate() {
             writeln!(f, "  i{} [{}] : {}", i, input.width, input.name)?;
@@ -368,6 +374,12 @@ impl From<Circuit> for LayeredCircuit {
 
 impl Display for LayeredCircuit {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "wires = {}, gates = {}",
+            self.num_wires,
+            self.layers.iter().map(|layer| layer.len()).sum::<usize>()
+        )?;
         writeln!(f, "inputs:")?;
         for (i, input) in self.inputs.iter().enumerate() {
             writeln!(f, "  i{} [{}] : {}", i, input.width, input.name)?;
@@ -378,7 +390,7 @@ impl Display for LayeredCircuit {
         }
 
         for (i, layer) in self.layers.iter().enumerate() {
-            writeln!(f, "layer {} (len={})", i, layer.len());
+            writeln!(f, "layer {} (len={})", i, layer.len())?;
             for gate in layer {
                 writeln!(f, "  {}", gate)?;
             }
@@ -395,6 +407,7 @@ mod tests {
 
     #[test]
     fn parse_circuit_ast() {
+        // let input_file = "./test-data/aes-128-decryption.v";
         let input_file = "./test-data/sample1.v";
         let input = fs::read_to_string(&input_file).unwrap();
         let result = Module::parse(&input).unwrap();
